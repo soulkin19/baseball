@@ -1,792 +1,170 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>プロ野球スピリッツ風 超本格野球</title>
+    <title>3D FPS - Achex Online</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        
-        :root {
-            --gold: #ffcc00;
-            --blue: #00aaff;
-        }
-        
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Noto Sans JP', sans-serif;
-            background: linear-gradient(#001122, #112233);
-            color: #fff;
-            text-align: center;
-            overflow: hidden;
-        }
-        
-        header {
-            background: linear-gradient(to right, #111133, #223366);
-            padding: 8px 0;
-            box-shadow: 0 4px 20px rgba(255,204,0,0.5);
-            position: relative;
-        }
-        
-        h1 {
-            margin: 0;
-            font-size: 34px;
-            font-weight: 900;
-            letter-spacing: 8px;
-            text-shadow: 0 0 20px var(--gold);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-        }
-        
-        .prospi-logo {
-            font-size: 42px;
-            animation: logo-glow 2s infinite alternate;
-        }
-        
-        @keyframes logo-glow {
-            from { text-shadow: 0 0 10px #ffcc00; }
-            to { text-shadow: 0 0 30px #ffcc00, 0 0 50px #00aaff; }
-        }
-        
-        .scoreboard {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 880px;
-            margin: 15px auto;
-            background: linear-gradient(#1a1a2e, #16213e);
-            border: 5px solid var(--gold);
-            border-radius: 20px;
-            padding: 15px 35px;
-            box-shadow: 0 12px 30px rgba(255,204,0,0.4);
-        }
-        
-        .team {
-            display: flex;
-            align-items: center;
-            gap: 18px;
-        }
-        
-        .team-name {
-            font-size: 24px;
-            font-weight: 900;
-        }
-        
-        .score {
-            font-size: 58px;
-            font-weight: 900;
-            color: var(--gold);
-            min-width: 90px;
-            text-shadow: 0 0 15px #000;
-        }
-        
-        .vs {
-            font-size: 38px;
-            font-weight: 900;
-            color: #ff2222;
-            text-shadow: 0 0 15px #ff2222;
-        }
-        
-        .game-info {
-            background: rgba(255,255,255,0.12);
-            border-radius: 9999px;
-            padding: 10px 45px;
-            display: inline-flex;
-            align-items: center;
-            gap: 35px;
-            font-size: 21px;
-            margin: 10px auto;
-            box-shadow: 0 0 15px rgba(255,204,0,0.3);
-        }
-        
-        canvas {
-            border: 10px solid #112233;
-            border-radius: 24px;
-            box-shadow: 
-                0 20px 50px rgba(0,0,0,0.8),
-                0 0 0 10px rgba(255,204,0,0.3);
-            background: #001122;
-            margin: 12px auto 18px;
-            display: block;
-        }
-        
-        .controls {
-            max-width: 880px;
-            margin: 0 auto;
-            padding: 0 25px;
-        }
-        
-        .status {
-            font-size: 28px;
-            font-weight: 900;
-            margin-bottom: 15px;
-            text-shadow: 0 0 15px var(--gold);
-            min-height: 40px;
-        }
-        
-        .pitch-types {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            justify-content: center;
-            margin-bottom: 18px;
-        }
-        
-        button {
-            background: linear-gradient(#ffcc00, #cc9900);
-            color: #111;
-            border: none;
-            padding: 16px 32px;
-            font-size: 20px;
-            font-weight: 900;
-            border-radius: 9999px;
-            cursor: pointer;
-            box-shadow: 0 8px 0 #aa7700;
-            transition: all 0.2s;
-        }
-        
-        button:active {
-            transform: translateY(5px);
-            box-shadow: 0 3px 0 #aa7700;
-        }
-        
-        .strike-zone {
-            display: grid;
-            grid-template-columns: repeat(3, 72px);
-            grid-template-rows: repeat(3, 72px);
-            gap: 8px;
-            background: #112233;
-            padding: 15px;
-            border-radius: 18px;
-            border: 8px solid #fff;
-            margin: 18px auto;
-            box-shadow: inset 0 0 30px rgba(255,255,255,0.6);
-        }
-        
-        .zone {
-            background: #003322;
-            border: 5px solid #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 26px;
-            font-weight: 900;
-            color: #fff;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-        }
-        
-        .zone:hover {
-            background: #ffcc00;
-            color: #111;
-            transform: scale(1.08);
-        }
-        
-        .zone.selected {
-            background: #ff2222;
-            box-shadow: 0 0 0 8px #ffff00;
-            animation: zonepulse 0.5s infinite;
-        }
-        
-        @keyframes zonepulse {
-            50% { transform: scale(1.2); }
-        }
-        
-        .message {
-            position: absolute;
-            top: 35%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 78px;
-            font-weight: 900;
-            color: var(--gold);
-            text-shadow: 
-                4px 4px 0 #000,
-                -4px -4px 0 #000,
-                0 0 40px #ffcc00;
-            pointer-events: none;
-            z-index: 300;
-            animation: pop 2s forwards;
-        }
-        
-        @keyframes pop {
-            0% { transform: translate(-50%, -80%) scale(0.2); opacity: 0; }
-            25% { transform: translate(-50%, -50%) scale(1.3); }
-            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
-        }
-        
-        .player-info {
-            display: flex;
-            justify-content: space-around;
-            max-width: 880px;
-            margin: 8px auto;
-            font-size: 19px;
-            font-weight: 700;
-        }
-        
-        footer {
-            font-size: 14px;
-            opacity: 0.7;
-            margin: 15px 0 10px;
-        }
+        body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; background: #000; }
+        #ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+              background: rgba(20, 20, 20, 0.9); padding: 30px; color: white; text-align: center; 
+              border-radius: 15px; border: 2px solid #444; z-index: 100; }
+        input, select, button { display: block; margin: 15px auto; padding: 12px; width: 220px; 
+                                border-radius: 5px; border: none; font-size: 16px; }
+        button { background: #28a745; color: white; cursor: pointer; font-weight: bold; }
+        button:hover { background: #218838; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px;
+                     border: 2px solid #0f0; border-radius: 50%; transform: translate(-50%, -50%); 
+                     pointer-events: none; display: none; z-index: 50; }
+        #status { position: absolute; top: 10px; left: 10px; color: #0f0; font-family: monospace; }
     </style>
 </head>
 <body>
-    <header>
-        <h1><span class="prospi-logo">⚾</span> プロ野球スピリッツ <span style="font-size:28px;letter-spacing:4px;">風</span> 超本格対戦 <span class="prospi-logo">⚾</span></h1>
-        <p style="margin:3px 0 0 0; font-size:18px; letter-spacing:3px;">BOTと9回　本物さながらのリアル野球体験</p>
-    </header>
-
-    <div class="scoreboard">
-        <div class="team">
-            <div style="font-size:32px;">👤</div>
-            <div>
-                <div class="team-name" id="player-name">あなた</div>
-                <div id="player-score" class="score">0</div>
-            </div>
-        </div>
-        
-        <div class="vs">VS</div>
-        
-        <div class="team">
-            <div>
-                <div class="team-name" id="bot-name">BOT投手</div>
-                <div id="bot-score" class="score">0</div>
-            </div>
-            <div style="font-size:32px;">🤖</div>
-        </div>
-        
-        <div style="text-align:center; line-height:1;">
-            <div id="inning-display" style="font-size:28px;font-weight:900;">1回表</div>
-            <div id="outs-display" style="font-size:19px;">アウト <span id="out-count" style="font-size:38px;color:#ff2222;">0</span></div>
-        </div>
+    <div id="status">Connecting to Achex...</div>
+    <div id="ui">
+        <h2>3D FPS ONLINE</h2>
+        <input type="text" id="nameInput" placeholder="プレイヤー名" value="Soldier">
+        <select id="weaponSelect">
+            <option value="AR">Assault Rifle</option>
+            <option value="SR">Sniper Rifle</option>
+            <option value="SMG">Submachine Gun</option>
+        </select>
+        <button id="startBtn">サーバーに接続して開始</button>
     </div>
+    <div id="crosshair"></div>
 
-    <div class="player-info">
-        <div id="batter-info">バッター：<span style="color:var(--gold)">あなた</span></div>
-        <div id="pitcher-info">ピッチャー：<span style="color:var(--blue)">BOT</span></div>
-    </div>
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
 
-    <div class="game-info">
-        <div>ボール <span id="balls" style="color:#00ccff;font-size:34px;">0</span></div>
-        <div>ストライク <span id="strikes" style="color:#ff4400;font-size:34px;">0</span></div>
-        <div id="base-display" style="font-size:26px;font-weight:700;">
-            1塁 <span id="base1">□</span>　2塁 <span id="base2">□</span>　3塁 <span id="base3">□</span>
-        </div>
-    </div>
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/PointerLockControls.js';
 
-    <canvas id="field" width="880" height="600"></canvas>
+        let scene, camera, renderer, controls;
+        let ws;
+        let myId = "player_" + Math.floor(Math.random() * 10000);
+        let otherPlayers = {};
+        const keys = {};
+        const ROOM_NAME = "fps_demo_room_999"; // 共通の部屋名
 
-    <div class="controls">
-        <div id="status" class="status">プロスピ級リアル野球　準備完了！</div>
+        // UIイベント
+        document.getElementById('startBtn').onclick = () => {
+            const name = document.getElementById('nameInput').value;
+            const weapon = document.getElementById('weaponSelect').value;
+            connectAchex(name, weapon);
+        };
 
-        <!-- 投手モード（あなた投手） -->
-        <div id="pitching-controls">
-            <div style="font-size:23px;font-weight:900;margin-bottom:12px;">投手モード　あなたが投げます</div>
-            <div class="pitch-types" id="pitch-type-buttons"></div>
-            
-            <div style="margin:15px 0 8px;font-size:19px;font-weight:700;">ストライクゾーンを選択して投球！</div>
-            <div id="strike-zone" class="strike-zone"></div>
-            
-            <button id="throw-btn" style="font-size:27px;padding:20px 70px;margin-top:12px;">投球する！</button>
-        </div>
+        function connectAchex(name, weapon) {
+            ws = new WebSocket('wss://achex.ca:4010');
 
-        <!-- 打者モード（あなた打者） -->
-        <div id="batting-controls" style="display:none;">
-            <div style="font-size:23px;font-weight:900;margin-bottom:15px;">打者モード　BOTが投げてきます</div>
-            <button id="start-pitch-btn" style="background:linear-gradient(#00aaff,#0066cc);color:#fff;font-size:29px;padding:24px 85px;">ピッチ開始</button>
-            
-            <div style="margin-top:30px;">
-                <button id="swing-btn" style="background:linear-gradient(#ff2222,#aa0000);color:#fff;font-size:38px;padding:30px 100px;display:none;">
-                    スイング！！<br><span style="font-size:18px;">SPACEキーでタイミングよく！</span>
-                </button>
-            </div>
-            <div id="timing-hint" style="margin-top:18px;font-size:18px;opacity:0.9;">ミート・パワーを意識してタイミングを合わせろ！</div>
-        </div>
+            ws.onopen = () => {
+                document.getElementById('status').innerText = "Connected to Achex";
+                // Achexにログイン(部屋に入る)
+                ws.send(JSON.stringify({ auth: myId, password: "password123" }));
+                ws.send(JSON.stringify({ join: ROOM_NAME }));
 
-        <div style="margin-top:25px;display:flex;gap:20px;justify-content:center;">
-            <button onclick="resetGame()" style="background:#555;color:#fff;font-size:19px;padding:16px 32px;">最初から</button>
-            <button onclick="togglePause()" id="pause-btn" style="background:#555;color:#fff;font-size:19px;padding:16px 32px;">一時停止</button>
-        </div>
-    </div>
+                initGame(name, weapon);
+                document.getElementById('ui').style.display = 'none';
+                document.getElementById('crosshair').style.display = 'block';
+            };
 
-    <footer>
-        プロ野球スピリッツ風　完全再現ルール<br>
-        フォーシーム・変化球・コース選択・タイミング打撃・9回本気対戦
-    </footer>
-
-    <script>
-        const canvas = document.getElementById('field');
-        const ctx = canvas.getContext('2d');
-        
-        let playerScore = 0;
-        let botScore = 0;
-        let inning = 1;
-        let isTopInning = true;
-        let outs = 0;
-        let balls = 0;
-        let strikes = 0;
-        let bases = [false, false, false];
-        
-        let isPlayerBatting = false;
-        let gameOver = false;
-        let isPaused = false;
-        
-        let isPitching = false;
-        let currentPitchType = null;
-        let currentLocation = null;
-        let isInZone = false;
-        let ballPosition = { x: 0, y: 0, progress: 0 };
-        let hitBall = null;
-        
-        const pitchTypes = [
-            { id: 'fast', name: 'フォーシーム', speed: 155, color: '#ff2222', difficulty: 0.75 },
-            { id: 'slider', name: 'スライダー', speed: 142, color: '#00aaff', difficulty: 0.84 },
-            { id: 'curve', name: 'カーブ', speed: 130, color: '#00cc44', difficulty: 0.79 },
-            { id: 'change', name: 'チェンジアップ', speed: 135, color: '#ff8800', difficulty: 0.70 },
-            { id: 'fork', name: 'フォーク', speed: 138, color: '#aa44ff', difficulty: 0.87 },
-            { id: 'sinker', name: 'シンカー', speed: 148, color: '#ff6600', difficulty: 0.82 }
-        ];
-        
-        function getOutcome(isSwing, timingQuality, inZone, difficulty) {
-            if (!isSwing) {
-                return inZone ? { result: 'strike', text: 'ストライク！' } : { result: 'ball', text: 'ボール！' };
-            }
-            
-            if (timingQuality < 0.28) return { result: 'miss', text: '空振り！' };
-            
-            const contact = Math.random();
-            if (contact > (0.85 - difficulty * 0.22)) {
-                const power = Math.random() * 1.9 + timingQuality * 1.3;
-                if (power > 2.6) return { result: 'homer', text: 'ホームラン！！' };
-                if (power > 2.0) return { result: 'triple', text: '三塁打！' };
-                if (power > 1.6) return { result: 'double', text: '二塁打！' };
-                if (power > 1.2) return { result: 'single', text: 'ヒット！' };
-                return { result: 'out', text: 'アウト' };
-            } else {
-                return (strikes >= 2 && Math.random() > 0.55) 
-                    ? { result: 'foul', text: 'ファウル' } 
-                    : { result: 'miss', text: '空振り！' };
-            }
-        }
-        
-        function drawField() {
-            // スタジアム背景
-            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            grad.addColorStop(0, '#001122');
-            grad.addColorStop(1, '#003322');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // 観客席
-            ctx.fillStyle = '#112244';
-            ctx.fillRect(60, 20, 760, 130);
-            ctx.fillStyle = '#334466';
-            for (let i = 0; i < 14; i++) {
-                ctx.fillRect(80 + i * 52, 38, 32, 100);
-            }
-            
-            // グラウンド
-            ctx.fillStyle = '#0a5511';
-            ctx.fillRect(110, 150, 660, 400);
-            
-            // インフィールド
-            ctx.fillStyle = '#d4b07a';
-            ctx.beginPath();
-            ctx.moveTo(440, 480);
-            ctx.lineTo(690, 290);
-            ctx.lineTo(440, 100);
-            ctx.lineTo(190, 290);
-            ctx.closePath();
-            ctx.fill();
-            
-            // ベースライン
-            ctx.strokeStyle = '#eeeeee';
-            ctx.lineWidth = 14;
-            ctx.shadowBlur = 8;
-            ctx.shadowColor = '#fff';
-            ctx.beginPath();
-            ctx.moveTo(440, 480); ctx.lineTo(690, 290);
-            ctx.moveTo(690, 290); ctx.lineTo(440, 100);
-            ctx.moveTo(440, 100); ctx.lineTo(190, 290);
-            ctx.moveTo(190, 290); ctx.lineTo(440, 480);
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-            
-            // ベース
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(415, 460, 50, 50); // home
-            ctx.save();
-            ctx.translate(665, 275);
-            ctx.rotate(Math.PI / 4);
-            ctx.fillRect(-25, -25, 50, 50);
-            ctx.restore();
-            ctx.fillRect(415, 80, 50, 50); // 2nd
-            ctx.save();
-            ctx.translate(195, 275);
-            ctx.rotate(Math.PI / 4);
-            ctx.fillRect(-25, -25, 50, 50);
-            ctx.restore();
-            
-            // 投手板
-            ctx.fillStyle = '#777';
-            ctx.fillRect(400, 330, 80, 28);
-            
-            // バッターボックス
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 8;
-            ctx.strokeRect(330, 455, 200, 80);
-            
-            // 走者
-            ctx.font = 'bold 46px Noto Sans JP';
-            ctx.fillStyle = '#ffcc00';
-            if (bases[0]) ctx.fillText('⚾', 700, 275);
-            if (bases[1]) ctx.fillText('⚾', 435, 65);
-            if (bases[2]) ctx.fillText('⚾', 150, 275);
-            
-            // 投球中
-            if (isPitching) {
-                ctx.shadowBlur = 45;
-                ctx.shadowColor = '#ffff88';
-                ctx.fillStyle = '#fff';
-                ctx.beginPath();
-                ctx.arc(ballPosition.x, ballPosition.y, 14, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
-            }
-            
-            // 打球
-            if (hitBall) {
-                ctx.shadowBlur = 35;
-                ctx.shadowColor = '#ffff88';
-                ctx.fillStyle = '#ffff88';
-                ctx.beginPath();
-                ctx.arc(hitBall.x, hitBall.y, 13, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
                 
-                ctx.strokeStyle = 'rgba(255,255,136,0.7)';
-                ctx.lineWidth = 10;
-                ctx.beginPath();
-                ctx.moveTo(hitBall.x - hitBall.vx * 1.2, hitBall.y - hitBall.vy * 1.2);
-                ctx.lineTo(hitBall.x, hitBall.y);
-                ctx.stroke();
-            }
-            
-            // ストライクゾーン
-            if (isPitching || document.getElementById('pitching-controls').style.display !== 'none') {
-                ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-                ctx.lineWidth = 10;
-                ctx.strokeRect(330, 195, 200, 240);
-                ctx.lineWidth = 4;
-                ctx.beginPath();
-                ctx.moveTo(397, 195); ctx.lineTo(397, 435);
-                ctx.moveTo(463, 195); ctx.lineTo(463, 435);
-                ctx.moveTo(330, 263); ctx.lineTo(530, 263);
-                ctx.moveTo(330, 330); ctx.lineTo(530, 330);
-                ctx.stroke();
-            }
-        }
-        
-        function updateScoreboard() {
-            document.getElementById('player-score').textContent = playerScore;
-            document.getElementById('bot-score').textContent = botScore;
-            document.getElementById('inning-display').innerHTML = `${inning}回${isTopInning ? '表' : '裏'}`;
-            document.getElementById('out-count').textContent = outs;
-            document.getElementById('balls').textContent = balls;
-            document.getElementById('strikes').textContent = strikes;
-            
-            document.getElementById('base1').textContent = bases[0] ? '●' : '□';
-            document.getElementById('base2').textContent = bases[1] ? '●' : '□';
-            document.getElementById('base3').textContent = bases[2] ? '●' : '□';
-            
-            document.getElementById('batter-info').innerHTML = `バッター：<span style="color:var(--gold)">${isPlayerBatting ? 'あなた' : 'BOT'}</span>`;
-            document.getElementById('pitcher-info').innerHTML = `ピッチャー：<span style="color:var(--blue)">${isPlayerBatting ? 'BOT' : 'あなた'}</span>`;
-        }
-        
-        function advanceRunners(hitType) {
-            let score = 0;
-            if (hitType === 'homer') {
-                score = (bases[0]?1:0) + (bases[1]?1:0) + (bases[2]?1:0) + 1;
-                bases = [false,false,false];
-            } else if (hitType === 'triple') {
-                score = (bases[0]?1:0) + (bases[1]?1:0) + (bases[2]?1:0);
-                bases = [false,false,true];
-            } else if (hitType === 'double') {
-                score = (bases[0]?1:0) + (bases[1]?1:0) + (bases[2]?1:0);
-                bases = [false,true,false];
-            } else if (hitType === 'single') {
-                score = bases[2] ? 1 : 0;
-                bases[2] = bases[1];
-                bases[1] = bases[0];
-                bases[0] = true;
-            }
-            return score;
-        }
-        
-        function endAtBat(result) {
-            isPitching = false;
-            document.getElementById('swing-btn').style.display = 'none';
-            
-            let scoreAdded = 0;
-            let msg = result.text;
-            
-            if (result.result === 'strike') {
-                strikes++;
-                if (strikes >= 3) { msg = '三振！！'; outs++; resetCount(); }
-            } else if (result.result === 'ball') {
-                balls++;
-                if (balls >= 4) {
-                    msg = 'フォアボール！';
-                    if (bases[0] && bases[1] && bases[2]) scoreAdded = 1;
-                    else if (!bases[0]) bases[0] = true;
-                    else if (!bases[1]) bases[1] = true;
-                    else bases[2] = true;
-                    resetCount();
-                }
-            } else if (result.result === 'miss' || result.result === 'out') {
-                outs++;
-                msg += ' アウト';
-                resetCount();
-            } else if (result.result === 'foul') {
-                if (strikes < 2) strikes++;
-                msg = 'ファウル！';
-            } else {
-                scoreAdded = advanceRunners(result.result);
-                if (scoreAdded > 0) msg += `（${scoreAdded}点！）`;
-                resetCount();
-                if (['single','double','triple','homer'].includes(result.result)) startHitAnimation(result.result);
-            }
-            
-            if (isPlayerBatting) playerScore += scoreAdded;
-            else botScore += scoreAdded;
-            
-            showMessage(msg);
-            updateScoreboard();
-            
-            if (outs >= 3) setTimeout(nextHalfInning, 1500);
-            else setTimeout(newAtBat, 1100);
-        }
-        
-        function resetCount() {
-            balls = 0;
-            strikes = 0;
-        }
-        
-        function newAtBat() {
-            if (gameOver) return;
-            isPlayerBatting = !isTopInning;
-            
-            document.getElementById('pitching-controls').style.display = isPlayerBatting ? 'none' : 'block';
-            document.getElementById('batting-controls').style.display = isPlayerBatting ? 'block' : 'none';
-            
-            document.getElementById('status').innerHTML = isPlayerBatting 
-                ? '🤖 BOT投手　投球準備中…' 
-                : '⚾ あなた投手　球種＆コースを選べ！';
-            
-            updateScoreboard();
-            drawField();
-        }
-        
-        function nextHalfInning() {
-            if (isTopInning) {
-                isTopInning = false;
-            } else {
-                isTopInning = true;
-                inning++;
-                if (inning > 9) {
-                    endGame();
-                    return;
-                }
-            }
-            outs = 0;
-            newAtBat();
-        }
-        
-        function endGame() {
-            gameOver = true;
-            const diff = playerScore - botScore;
-            const resultText = diff > 0 ? 'あなたの勝利！！' : (diff < 0 ? 'BOTの勝利…' : '引き分け');
-            showMessage(`🏆 9回終了<br>${playerScore} - ${botScore}<br><span style="font-size:52px">${resultText}</span>`, 7000);
-        }
-        
-        function showMessage(text, duration = 1700) {
-            const div = document.createElement('div');
-            div.className = 'message';
-            div.innerHTML = text;
-            document.body.appendChild(div);
-            setTimeout(() => div.remove(), duration);
-        }
-        
-        function startPitchAnimation(isAI = false) {
-            if (isPitching) return;
-            isPitching = true;
-            ballPosition.progress = 0;
-            ballPosition.x = 440;
-            ballPosition.y = 330;
-            
-            const startTime = Date.now();
-            const duration = isAI ? 1150 : 820;
-            
-            function animate() {
-                if (!isPitching || isPaused) return;
-                const elapsed = Date.now() - startTime;
-                ballPosition.progress = Math.min(elapsed / duration, 1);
-                
-                ballPosition.x = 440;
-                ballPosition.y = 330 + (455 - 330) * ballPosition.progress * 1.28;
-                
-                if (currentPitchType) {
-                    if (currentPitchType.id === 'slider') ballPosition.x += Math.sin(ballPosition.progress * Math.PI) * 32;
-                    if (currentPitchType.id === 'curve') ballPosition.x -= Math.sin(ballPosition.progress * Math.PI * 1.5) * 42;
-                    if (currentPitchType.id === 'fork') ballPosition.y += Math.sin(ballPosition.progress * 8) * 22;
-                }
-                
-                drawField();
-                
-                if (ballPosition.progress < 1) {
-                    requestAnimationFrame(animate);
-                } else {
-                    isPitching = false;
-                    drawField();
-                    if (!isAI) {
-                        const outcome = getOutcome(true, Math.random() * 0.7 + 0.5, isInZone, currentPitchType.difficulty);
-                        endAtBat(outcome);
+                // 他のプレイヤーからの位置情報を受信
+                if (data.sID && data.sID !== myId && data.msg) {
+                    const m = data.msg;
+                    if (m.type === 'move') {
+                        updateOtherPlayer(data.sID, m);
                     }
                 }
-            }
+            };
+        }
+
+        function initGame(name, weapon) {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111111);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            // ランダムスポーン地点の設定
+            camera.position.set((Math.random()-0.5)*40, 1.6, (Math.random()-0.5)*40);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new PointerLockControls(camera, document.body);
+            document.addEventListener('click', () => controls.lock());
+
+            // 地面と照明
+            const grid = new THREE.GridHelper(100, 50, 0x444444, 0x222222);
+            scene.add(grid);
+            const light = new THREE.DirectionalLight(0xffffff, 1);
+            light.position.set(10, 20, 10);
+            scene.add(light);
+            scene.add(new THREE.AmbientLight(0x404040));
+
             animate();
         }
-        
-        function startHitAnimation(hitType) {
-            hitBall = { x: 440, y: 455, vx: (Math.random() * 10 - 5), vy: hitType === 'homer' ? -19 : (hitType === 'triple' ? -15 : -12) };
-            
-            let frame = 0;
-            const anim = setInterval(() => {
-                if (!hitBall) { clearInterval(anim); return; }
-                frame++;
-                hitBall.x += hitBall.vx;
-                hitBall.y += hitBall.vy;
-                hitBall.vy += 0.45;
+
+        function updateOtherPlayer(id, data) {
+            if (!otherPlayers[id]) {
+                // 初めて見るプレイヤーなら作成
+                const group = new THREE.Group();
+                const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 1, 4, 8), new THREE.MeshStandardMaterial({color: 0xff0000}));
+                body.position.y = 1;
+                group.add(body);
                 
-                drawField();
-                
-                if (hitBall.y > 620 || frame > 90) {
-                    hitBall = null;
-                    clearInterval(anim);
-                    drawField();
-                }
-            }, 16);
+                // 銃のダミー
+                const gun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.8), new THREE.MeshStandardMaterial({color: 0x555555}));
+                gun.position.set(0.3, 1.2, -0.4);
+                group.add(gun);
+
+                scene.add(group);
+                otherPlayers[id] = group;
+            }
+            // 位置と回転を更新
+            otherPlayers[id].position.set(data.x, data.y - 0.6, data.z);
+            otherPlayers[id].rotation.y = data.ry;
         }
-        
-        function setupPitchingControls() {
-            const container = document.getElementById('pitch-type-buttons');
-            container.innerHTML = '';
-            pitchTypes.forEach(p => {
-                const b = document.createElement('button');
-                b.innerHTML = `${p.name}<br><small>${p.speed}km/h</small>`;
-                b.style.background = p.color;
-                b.onclick = () => {
-                    currentPitchType = p;
-                    document.querySelectorAll('#pitch-type-buttons button').forEach(btn => btn.style.opacity = 0.35);
-                    b.style.opacity = 1;
-                };
-                container.appendChild(b);
-            });
-            
-            const zoneDiv = document.getElementById('strike-zone');
-            zoneDiv.innerHTML = '';
-            for (let y = 0; y < 3; y++) {
-                for (let x = 0; x < 3; x++) {
-                    const z = document.createElement('div');
-                    z.className = 'zone';
-                    z.textContent = (x === 1 && y === 1) ? '⚾' : '';
-                    z.onclick = () => {
-                        document.querySelectorAll('.zone').forEach(el => el.classList.remove('selected'));
-                        z.classList.add('selected');
-                        currentLocation = { x, y };
-                        isInZone = (x === 1 && y === 1) || Math.random() > 0.32;
-                    };
-                    zoneDiv.appendChild(z);
+
+        window.onkeydown = (e) => keys[e.code] = true;
+        window.onkeyup = (e) => keys[e.code] = false;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (controls && controls.isLocked) {
+                const speed = 0.15;
+                if (keys['KeyW']) controls.moveForward(speed);
+                if (keys['KeyS']) controls.moveForward(-speed);
+                if (keys['KeyA']) controls.moveRight(-speed);
+                if (keys['KeyD']) controls.moveRight(speed);
+
+                // Achex経由で自分の位置を送信
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        to: "all",
+                        room: ROOM_NAME,
+                        msg: {
+                            type: 'move',
+                            x: camera.position.x,
+                            y: camera.position.y,
+                            z: camera.position.z,
+                            ry: camera.rotation.y
+                        }
+                    }));
                 }
             }
-            
-            document.getElementById('throw-btn').onclick = () => {
-                if (!currentPitchType || !currentLocation) {
-                    showMessage('球種とコースを<br>選んでください！');
-                    return;
-                }
-                startPitchAnimation(false);
-                currentLocation = null;
-                document.querySelectorAll('.zone').forEach(z => z.classList.remove('selected'));
-            };
+            if (renderer) renderer.render(scene, camera);
         }
-        
-        function setupBattingControls() {
-            const startBtn = document.getElementById('start-pitch-btn');
-            const swingBtn = document.getElementById('swing-btn');
-            
-            startBtn.onclick = () => {
-                currentPitchType = pitchTypes[Math.floor(Math.random() * pitchTypes.length)];
-                startPitchAnimation(true);
-                startBtn.style.display = 'none';
-                swingBtn.style.display = 'block';
-                window.swingReady = true;
-            };
-            
-            swingBtn.onclick = () => {
-                if (!isPitching) return;
-                const quality = Math.max(0.1, 1 - Math.abs(ballPosition.progress - 0.53) * 2.1);
-                const outcome = getOutcome(true, quality, isInZone, currentPitchType.difficulty);
-                endAtBat(outcome);
-                startBtn.style.display = 'block';
-                swingBtn.style.display = 'none';
-            };
-            
-            document.addEventListener('keydown', e => {
-                if (e.key === ' ' && isPlayerBatting && isPitching && window.swingReady) {
-                    e.preventDefault();
-                    swingBtn.click();
-                }
-            });
-        }
-        
-        function startGame() {
-            playerScore = botScore = 0;
-            inning = 1;
-            isTopInning = true;
-            outs = balls = strikes = 0;
-            bases = [false, false, false];
-            gameOver = isPaused = false;
-            
-            setupPitchingControls();
-            setupBattingControls();
-            
-            updateScoreboard();
-            drawField();
-            newAtBat();
-            
-            function loop() {
-                if (!gameOver && !isPaused) drawField();
-                requestAnimationFrame(loop);
+
+        window.addEventListener('resize', () => {
+            if (camera) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
             }
-            loop();
-        }
-        
-        function resetGame() {
-            startGame();
-        }
-        
-        function togglePause() {
-            isPaused = !isPaused;
-            document.getElementById('pause-btn').textContent = isPaused ? '再開' : '一時停止';
-        }
-        
-        window.onload = startGame;
+        });
     </script>
 </body>
 </html>
