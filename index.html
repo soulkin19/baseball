@@ -2,247 +2,502 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Achex 3D FPS - Pro Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>プロスピ風 ブラウザ野球</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; }
+        body {
+            background-color: #1a1a1a;
+            color: white;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 10px;
+            /* タッチデバイスでのデフォルトスワイプ動作を無効化 */
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #scoreboard {
+            width: 100%;
+            max-width: 600px;
+            background: linear-gradient(to bottom, #333, #000);
+            border: 2px solid #555;
+            border-radius: 8px;
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .team-score { display: flex; flex-direction: column; align-items: center; width: 25%; font-weight: bold;}
+        .inning-info { display: flex; flex-direction: column; align-items: center; width: 50%; color: #ffd700; font-weight: bold;}
+        .count-board { display: flex; gap: 10px; margin-top: 5px;}
+        .indicator { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #777; background-color: #222; display: inline-block; margin-right: 2px;}
+        .strike.active { background-color: #ffeb3b; } /* プロスピ風の黄色 */
+        .ball.active { background-color: #4caf50; }  /* プロスピ風の緑 */
+        .out.active { background-color: #f44336; }   /* 赤 */
         
-        /* ロビー画面 */
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); color: white; z-index: 20; }
-        #lobby { text-align: center; background: #222; padding: 40px; border-radius: 15px; border: 2px solid #444; box-shadow: 0 0 20px rgba(0,255,0,0.2); width: 300px; }
-        input, select, button { display: block; width: 100%; margin: 15px 0; padding: 12px; font-size: 16px; border-radius: 8px; border: 1px solid #444; background: #333; color: white; box-sizing: border-box; }
-        button { background: #28a745; cursor: pointer; font-weight: bold; border: none; transition: 0.3s; }
-        button:hover { background: #218838; transform: scale(1.05); }
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+        }
+        canvas {
+            width: 100%;
+            height: auto;
+            background-color: #2e7d32; /* 球場の芝生の色 */
+            border: 2px solid #fff;
+            border-radius: 8px;
+            display: block;
+        }
+        #message {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 10vw; /* 画面サイズに合わせる */
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+        
+        /* モバイル/iPad用コントローラー */
+        #controls {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            height: 80px;
+        }
+        .instruction {
+            width: 60%;
+            font-size: 14px;
+            color: #ccc;
+            display: flex;
+            align-items: center;
+        }
+        #swing-btn {
+            width: 35%;
+            background: linear-gradient(to bottom, #ff5722, #bf360c);
+            color: white;
+            border: 2px solid #fff;
+            border-radius: 40px;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        #swing-btn:active {
+            transform: scale(0.95);
+        }
+        #swing-btn:disabled {
+            background: #555;
+            color: #888;
+            border-color: #777;
+        }
 
-        /* ゲーム内UI */
-        #playerCount { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.6); color: #0f0; padding: 10px 20px; border-radius: 5px; font-weight: bold; font-size: 18px; border-left: 4px solid #0f0; display: none; z-index: 10; }
-        #hud { position: absolute; bottom: 20px; left: 20px; color: white; text-shadow: 2px 2px 4px black; pointer-events: none; display: none; z-index: 10; }
-        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.8); font-size: 24px; pointer-events: none; display: none; z-index: 10; }
+        @media (min-width: 600px) {
+            #message { font-size: 60px; }
+        }
     </style>
 </head>
 <body>
 
-    <div id="ui-layer">
-        <div id="lobby">
-            <h1 style="color: #28a745; margin-top: 0;">FPS ARENA</h1>
-            <input type="text" id="playerName" placeholder="プレイヤー名" maxlength="12">
-            <select id="weaponSelect">
-                <option value="rifle">アサルトライフル (Red)</option>
-                <option value="shotgun">ショットガン (Blue)</option>
-            </select>
-            <button id="btnJoin">出撃する</button>
-            <div style="font-size: 12px; color: #888; line-height: 1.5;">
-                WASD: 移動<br>Mouse: 視点操作<br>Esc: メニュー
+    <div id="scoreboard">
+        <div class="team-score">
+            <div>YOU</div>
+            <div id="score-player" style="font-size: 28px;">0</div>
+        </div>
+        <div class="inning-info">
+            <div id="inning-text">1回 表 (あなたの攻撃)</div>
+            <div class="count-board">
+                <div>B <span id="ball-1" class="indicator ball"></span><span id="ball-2" class="indicator ball"></span><span id="ball-3" class="indicator ball"></span></div>
+                <div>S <span id="strike-1" class="indicator strike"></span><span id="strike-2" class="indicator strike"></span></div>
+                <div>O <span id="out-1" class="indicator out"></span><span id="out-2" class="indicator out"></span></div>
             </div>
+        </div>
+        <div class="team-score">
+            <div>BOT</div>
+            <div id="score-bot" style="font-size: 28px;">0</div>
         </div>
     </div>
 
-    <div id="playerCount">参加者: 1</div>
-    <div id="hud">
-        <div id="statusText"></div>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        <div id="message">PLAY BALL!</div>
     </div>
-    <div id="crosshair">＋</div>
 
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
-            }
-        }
-    </script>
+    <div id="controls">
+        <div class="instruction" id="instruction-text">
+            【攻撃】画面をドラッグしてカーソルを移動。右のボタンでスイング！
+        </div>
+        <button id="swing-btn">スイング</button>
+    </div>
 
-    <script type="module">
-        import * as THREE from 'three';
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-        // --- 基本設定 ---
-        const HUB_NAME = "Achex_FullFPS_Stage_01"; 
-        const WS_URL = "wss://achex.ca:4001";
+// ゲームステート
+let state = {
+    inning: 1, isTop: true, playerScore: 0, botScore: 0,
+    balls: 0, strikes: 0, outs: 0, bases: [false, false, false],
+    phase: 'ready', messageTimer: 0, maxInnings: 3
+};
+
+// 3D/擬似奥行き用の定数 (キャッチャー視点)
+const MOUND = { x: 300, y: 250, size: 5 }; // ピッチャーの位置（奥）
+const STRIKE_ZONE = { x: 200, y: 300, w: 200, h: 200 }; // ストライクゾーン（手前）
+const BALL_MIN_SIZE = 3;  // 奥にあるときのボールサイズ
+const BALL_MAX_SIZE = 15; // 手前に来たときのボールサイズ
+
+// オブジェクト
+let ball = { x: MOUND.x, y: MOUND.y, z: 0, targetX: 300, targetY: 400, active: false, speed: 0.03, progress: 0 };
+let cursor = { x: 300, y: 400, radius: 25, isDragging: false }; // ミートカーソル
+let swingAnim = 0; // スイング時のエフェクト用
+
+function showMessage(text, duration = 60) {
+    const msgEl = document.getElementById('message');
+    msgEl.innerText = text;
+    msgEl.style.opacity = 1;
+    state.messageTimer = duration;
+}
+
+function updateUI() {
+    document.getElementById('score-player').innerText = state.playerScore;
+    document.getElementById('score-bot').innerText = state.botScore;
+    document.getElementById('inning-text').innerText = `${state.inning}回 ${state.isTop ? '表 (あなた攻撃)' : '裏 (ボット攻撃)'}`;
+    
+    for(let i=1; i<=3; i++) document.getElementById(`ball-${i}`).classList.toggle('active', state.balls >= i);
+    for(let i=1; i<=2; i++) document.getElementById(`strike-${i}`).classList.toggle('active', state.strikes >= i);
+    for(let i=1; i<=2; i++) document.getElementById(`out-${i}`).classList.toggle('active', state.outs >= i);
+
+    document.getElementById('instruction-text').innerHTML = state.isTop 
+        ? "【攻撃】画面をドラッグしてカーソル移動。<br>タイミングよくスイング！" 
+        : "【守備】ストライクゾーン付近をタップして<br>投球コースを決定！";
         
-        let scene, camera, renderer, socket;
-        let myId = Math.random().toString(36).substring(7);
-        let players = {}; 
-        let moveState = { forward: false, backward: false, left: false, right: false };
-        let isGameStarted = false;
-        let myData = { name: "", weapon: "", pos: {x:0, z:10}, rot: 0 };
+    document.getElementById('swing-btn').disabled = !state.isTop;
 
-        // --- ステージ構築 ---
-        function createStage() {
-            // 床（グリッド模様）
-            const floorGeo = new THREE.PlaneGeometry(100, 100);
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-            const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.rotation.x = -Math.PI / 2;
-            scene.add(floor);
+    if(state.messageTimer > 0) {
+        state.messageTimer--;
+        if(state.messageTimer <= 0) document.getElementById('message').style.opacity = 0;
+    }
+}
 
-            const grid = new THREE.GridHelper(100, 50, 0x444444, 0x222222);
-            scene.add(grid);
+function resetCount() { state.balls = 0; state.strikes = 0; }
+function addStrike() {
+    state.strikes++;
+    if(state.strikes >= 3) { showMessage("STRIKEOUT!", 80); addOut(); resetCount(); }
+    else showMessage("STRIKE!");
+}
+function addBall() {
+    state.balls++;
+    if(state.balls >= 4) { showMessage("WALK (四球)!", 80); advanceRunners(1); resetCount(); }
+    else showMessage("BALL!");
+}
+function addOut() {
+    state.outs++;
+    if(state.outs >= 3) switchInning();
+}
 
-            // 外壁
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-            const createWall = (w, h, d, x, y, z) => {
-                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
-                mesh.position.set(x, y, z);
-                scene.add(mesh);
-            };
-            createWall(100, 10, 1, 0, 5, -50); // 奥
-            createWall(100, 10, 1, 0, 5, 50);  // 手前
-            createWall(1, 10, 100, -50, 5, 0); // 左
-            createWall(1, 10, 100, 50, 5, 0);  // 右
-
-            // 障害物（柱やボックス）
-            for(let i=0; i<15; i++) {
-                const size = 2 + Math.random() * 4;
-                const box = new THREE.Mesh(
-                    new THREE.BoxGeometry(size, size * 2, size),
-                    new THREE.MeshStandardMaterial({ color: 0x444444 })
-                );
-                box.position.set(
-                    (Math.random() - 0.5) * 80,
-                    size,
-                    (Math.random() - 0.5) * 80
-                );
-                scene.add(box);
-            }
+function advanceRunners(basesToAdvance) {
+    let runs = 0;
+    if(basesToAdvance === 1 && !state.bases[0]) { state.bases[0] = true; return; }
+    for (let i = 2; i >= 0; i--) {
+        if (state.bases[i]) {
+            state.bases[i] = false;
+            if (i + basesToAdvance >= 3) runs++;
+            else state.bases[i + basesToAdvance] = true;
         }
+    }
+    if (basesToAdvance >= 4) runs++;
+    else if (basesToAdvance > 0) state.bases[basesToAdvance - 1] = true;
 
-        function initGame() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050505);
-            scene.fog = new THREE.FogExp2(0x050505, 0.02); // 霧で奥行き感を出す
+    if(runs > 0) {
+        if(state.isTop) state.playerScore += runs; else state.botScore += runs;
+        showMessage(`${runs} RUNS SCORE!`, 90);
+    }
+}
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.y = 1.6;
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            document.body.appendChild(renderer.domElement);
-
-            // ライティング
-            const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-            sun.position.set(10, 20, 10);
-            scene.add(sun);
-            scene.add(new THREE.AmbientLight(0x404040, 0.5));
-
-            createStage();
-            animate();
+function switchInning() {
+    state.outs = 0; resetCount(); state.bases = [false, false, false];
+    if(state.isTop) { state.isTop = false; showMessage("CHANGE!", 100); } 
+    else {
+        state.inning++;
+        if(state.inning > state.maxInnings) {
+            let res = state.playerScore > state.botScore ? "YOU WIN!" : (state.playerScore < state.botScore ? "YOU LOSE..." : "DRAW");
+            showMessage(`GAME OVER\n${res}`, 9999);
+            state.phase = 'gameover';
+            return;
         }
+        state.isTop = true; showMessage("CHANGE!", 100);
+    }
+}
 
-        // --- ネットワーク & 参加者数更新 ---
-        function updatePlayerCountDisplay() {
-            const total = Object.keys(players).length + 1; // 自分 + 他人
-            document.getElementById('playerCount').innerText = `参加者: ${total}`;
-        }
+// 投球開始
+function throwPitch(tx, ty) {
+    if(state.phase !== 'ready') return;
+    ball.targetX = tx; ball.targetY = ty;
+    ball.progress = 0;
+    ball.active = true;
+    state.phase = 'pitching';
+    ball.speed = 0.015 + Math.random() * 0.01; // 球速のブレ
+}
 
-        function setupNetwork() {
-            socket = new WebSocket(WS_URL);
-            socket.onopen = () => {
-                socket.send(JSON.stringify({ auth: "public", join: HUB_NAME }));
-            };
-
-            socket.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                if (!data.msg || data.sID === myId) return;
-
-                if (data.msg.type === "move") {
-                    updateRemotePlayer(data.sID, data.msg);
-                }
-            };
-
-            // 簡易的なタイムアウト（5秒通信がないプレイヤーを削除）
-            setInterval(() => {
-                const now = Date.now();
-                for (let id in players) {
-                    if (now - players[id].lastUpdate > 5000) {
-                        scene.remove(players[id].mesh);
-                        delete players[id];
-                        updatePlayerCountDisplay();
-                    }
-                }
-            }, 2000);
-        }
-
-        function updateRemotePlayer(id, data) {
-            if (!players[id]) {
-                const color = data.weapon === "rifle" ? 0xff4444 : 0x4444ff;
-                // 体
-                const group = new THREE.Group();
-                const body = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.5), new THREE.MeshStandardMaterial({ color }));
-                group.add(body);
-                // 武器のモデル代わり
-                const gun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-                gun.position.set(0.4, 0.2, -0.5);
-                group.add(gun);
-
-                scene.add(group);
-                players[id] = { mesh: group, lastUpdate: Date.now() };
-                updatePlayerCountDisplay();
-            }
-            players[id].mesh.position.set(data.pos.x, 1, data.pos.z);
-            players[id].mesh.rotation.y = data.rot;
-            players[id].lastUpdate = Date.now();
-        }
-
-        // --- コントロール ---
-        document.getElementById('btnJoin').onclick = () => {
-            myData.name = document.getElementById('playerName').value || "Soldier";
-            myData.weapon = document.getElementById('weaponSelect').value;
-            
-            document.getElementById('ui-layer').style.display = 'none';
-            document.getElementById('playerCount').style.display = 'block';
-            document.getElementById('hud').style.display = 'block';
-            document.getElementById('crosshair').style.display = 'block';
-            document.getElementById('statusText').innerText = `NAME: ${myData.name} | WEAPON: ${myData.weapon.toUpperCase()}`;
-            
-            document.body.requestPointerLock();
-            isGameStarted = true;
-            initGame();
-            setupNetwork();
-            updatePlayerCountDisplay();
-        };
-
-        // WASD入力
-        window.addEventListener('keydown', (e) => { if(moveState.hasOwnProperty(e.code.replace('Key','').toLowerCase())) moveState[e.code.replace('Key','').toLowerCase()] = true; });
-        window.addEventListener('keyup', (e) => { if(moveState.hasOwnProperty(e.code.replace('Key','').toLowerCase())) moveState[e.code.replace('Key','').toLowerCase()] = false; });
+// スイング処理
+function swing() {
+    if(!state.isTop || state.phase !== 'pitching' || swingAnim > 0) return;
+    swingAnim = 15; // スイングエフェクトのフレーム数
+    
+    // プロスピ風判定：ボールが手前(progressが0.85〜1.0)に来た時にスイングしたか
+    if (ball.progress > 0.85 && ball.progress <= 1.05) {
+        // カーソルとボールの距離を計算
+        let dx = ball.x - cursor.x;
+        let dy = ball.y - cursor.y;
+        let distance = Math.sqrt(dx*dx + dy*dy);
         
-        window.addEventListener('mousemove', (e) => {
-            if (document.pointerLockElement) {
-                camera.rotation.y -= e.movementX * 0.002;
-                // 上下制限（FPSおなじみの処理）
-                camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x - e.movementY * 0.002));
-                myData.rot = camera.rotation.y;
-            }
-        });
+        if (distance < cursor.radius) {
+            hitBall(distance);
+            return;
+        }
+    }
+    // タイミングがずれている、またはカーソルが合っていない
+    if (ball.progress > 0.5 && ball.progress < 1.2) {
+        state.phase = 'dead';
+        addStrike();
+    }
+}
 
-        function animate() {
-            requestAnimationFrame(animate);
-            if (!isGameStarted) return;
+function hitBall(distance) {
+    state.phase = 'hit';
+    ball.active = false; // 打ったのでボールを消す
+    let timing = Math.abs(ball.progress - 0.95); // 0.95がジャストタイミングとする
+    let power = Math.random();
 
-            const speed = 0.12;
-            if (moveState.forward) { camera.position.x -= Math.sin(camera.rotation.y) * speed; camera.position.z -= Math.cos(camera.rotation.y) * speed; }
-            if (moveState.backward) { camera.position.x += Math.sin(camera.rotation.y) * speed; camera.position.z += Math.cos(camera.rotation.y) * speed; }
-            if (moveState.left) { camera.position.x -= Math.cos(camera.rotation.y) * speed; camera.position.z += Math.sin(camera.rotation.y) * speed; }
-            if (moveState.right) { camera.position.x += Math.cos(camera.rotation.y) * speed; camera.position.z -= Math.sin(camera.rotation.y) * speed; }
+    // 芯で捉え、かつタイミングが良い
+    if (distance < 10 && timing < 0.03 && power > 0.6) {
+        showMessage("HOME RUN!!!", 120); advanceRunners(4);
+    } else if (distance < 20 && timing < 0.06) {
+        showMessage("HIT!", 80); advanceRunners(1);
+    } else if (power > 0.3) {
+        showMessage("OUT...", 80); addOut();
+    } else {
+        showMessage("FOUL", 60);
+        if(state.strikes < 2) state.strikes++;
+    }
+    if(state.phase === 'hit') resetCount();
+}
 
-            // 境界チェック（壁の外に出ないように）
-            camera.position.x = Math.max(-48, Math.min(48, camera.position.x));
-            camera.position.z = Math.max(-48, Math.min(48, camera.position.z));
+function update() {
+    if(state.phase === 'gameover') return;
 
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({
-                    to: HUB_NAME, sID: myId,
-                    msg: { type: "move", name: myData.name, weapon: myData.weapon, pos: { x: camera.position.x, z: camera.position.z }, rot: camera.rotation.y }
-                }));
-            }
-            renderer.render(scene, camera);
+    if(state.phase === 'pitching') {
+        ball.progress += ball.speed;
+        
+        // 奥行きの計算 (0:奥 -> 1:手前)
+        // 変化球ロジック (ボット投球時、少し曲がる)
+        let curveX = 0;
+        if(state.isTop) curveX = Math.sin(ball.progress * Math.PI) * 20 * (Math.random() > 0.5 ? 1 : -1);
+
+        ball.x = MOUND.x + (ball.targetX - MOUND.x + curveX) * ball.progress;
+        ball.y = MOUND.y + (ball.targetY - MOUND.y) * ball.progress;
+        
+        // キャッチャーミットに到達 (progress >= 1)
+        if(ball.progress >= 1.05) {
+            state.phase = 'dead';
+            let isStrike = (ball.targetX >= STRIKE_ZONE.x && ball.targetX <= STRIKE_ZONE.x + STRIKE_ZONE.w &&
+                            ball.targetY >= STRIKE_ZONE.y && ball.targetY <= STRIKE_ZONE.y + STRIKE_ZONE.h);
+            if(isStrike) addStrike(); else addBall();
         }
 
-        window.addEventListener('resize', () => {
-            if (camera) {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
+        // ボットの自動スイング（守備時）
+        if(!state.isTop && ball.progress > 0.9 && ball.progress < 0.95) {
+            let isStrike = (ball.targetX >= STRIKE_ZONE.x && ball.targetX <= STRIKE_ZONE.x + STRIKE_ZONE.w &&
+                            ball.targetY >= STRIKE_ZONE.y && ball.targetY <= STRIKE_ZONE.y + STRIKE_ZONE.h);
+            if(isStrike || Math.random() < 0.2) {
+                // ボットは一定の確率でカーソルを合わせてくる
+                cursor.x = ball.targetX + (Math.random() - 0.5) * 30;
+                cursor.y = ball.targetY + (Math.random() - 0.5) * 30;
+                swingAnim = 15;
+                let dx = ball.x - cursor.x; let dy = ball.y - cursor.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if(dist < cursor.radius) hitBall(dist);
+                else { state.phase = 'dead'; addStrike(); }
             }
-        });
-    </script>
+        }
+    }
+
+    if(swingAnim > 0) swingAnim--;
+
+    // ボットの投球開始（プレイヤー攻撃時）
+    if(state.isTop && state.phase === 'ready' && Math.random() < 0.02) {
+        // ストライクゾーン付近にランダムに目標を定める
+        let tx = STRIKE_ZONE.x - 20 + Math.random() * (STRIKE_ZONE.w + 40);
+        let ty = STRIKE_ZONE.y - 20 + Math.random() * (STRIKE_ZONE.h + 40);
+        throwPitch(tx, ty);
+    }
+
+    // 次の球への移行
+    if(state.phase === 'dead' || state.phase === 'hit') {
+        setTimeout(() => {
+            if(state.phase !== 'gameover') { ball.active = false; state.phase = 'ready'; }
+        }, 1500);
+        state.phase = 'waiting';
+    }
+
+    updateUI();
+}
+
+function draw() {
+    // 背景（球場後方）
+    ctx.fillStyle = '#1b5e20'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // マウンド（奥）
+    ctx.fillStyle = '#8d6e63';
+    ctx.beginPath(); ctx.ellipse(MOUND.x, MOUND.y, 60, 20, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(MOUND.x - 10, MOUND.y - 2, 20, 4); // ピッチャープレート
+
+    // ピッチャー（シルエット）
+    ctx.fillStyle = '#333';
+    ctx.beginPath(); ctx.arc(MOUND.x, MOUND.y - 30, 15, 0, Math.PI*2); ctx.fill();
+    ctx.fillRect(MOUND.x - 15, MOUND.y - 20, 30, 40);
+
+    // ホームベース（手前）
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(300, 560); ctx.lineTo(340, 560); ctx.lineTo(340, 580); ctx.lineTo(300, 595); ctx.lineTo(260, 580); ctx.lineTo(260, 560);
+    ctx.closePath(); ctx.fill();
+
+    // ストライクゾーン枠（9分割）
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; ctx.lineWidth = 2;
+    ctx.strokeRect(STRIKE_ZONE.x, STRIKE_ZONE.y, STRIKE_ZONE.w, STRIKE_ZONE.h);
+    ctx.beginPath();
+    // 縦線
+    ctx.moveTo(STRIKE_ZONE.x + STRIKE_ZONE.w/3, STRIKE_ZONE.y); ctx.lineTo(STRIKE_ZONE.x + STRIKE_ZONE.w/3, STRIKE_ZONE.y + STRIKE_ZONE.h);
+    ctx.moveTo(STRIKE_ZONE.x + STRIKE_ZONE.w*2/3, STRIKE_ZONE.y); ctx.lineTo(STRIKE_ZONE.x + STRIKE_ZONE.w*2/3, STRIKE_ZONE.y + STRIKE_ZONE.h);
+    // 横線
+    ctx.moveTo(STRIKE_ZONE.x, STRIKE_ZONE.y + STRIKE_ZONE.h/3); ctx.lineTo(STRIKE_ZONE.x + STRIKE_ZONE.w, STRIKE_ZONE.y + STRIKE_ZONE.h/3);
+    ctx.moveTo(STRIKE_ZONE.x, STRIKE_ZONE.y + STRIKE_ZONE.h*2/3); ctx.lineTo(STRIKE_ZONE.x + STRIKE_ZONE.w, STRIKE_ZONE.y + STRIKE_ZONE.h*2/3);
+    ctx.stroke();
+
+    // ミートカーソル（攻撃時のみ）
+    if(state.isTop) {
+        ctx.strokeStyle = '#ffeb3b'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cursor.x, cursor.y, cursor.radius, 0, Math.PI*2); ctx.stroke();
+        ctx.fillStyle = 'rgba(255, 235, 59, 0.3)'; ctx.fill();
+        ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(cursor.x, cursor.y, 3, 0, Math.PI*2); ctx.fill(); // 中心点
+    }
+
+    // スイングエフェクト
+    if(swingAnim > 0) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.beginPath();
+        // 扇状のエフェクト
+        ctx.arc(cursor.x, cursor.y, cursor.radius * 2, Math.PI, Math.PI*2);
+        ctx.fill();
+    }
+
+    // ボール（奥から手前へサイズが変わる）
+    if(ball.active) {
+        let currentSize = BALL_MIN_SIZE + (BALL_MAX_SIZE - BALL_MIN_SIZE) * ball.progress;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(ball.x, ball.y, currentSize, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 1; // 縫い目
+        ctx.beginPath(); ctx.arc(ball.x, ball.y, currentSize, 0, Math.PI*2); ctx.stroke();
+    }
+
+    // ランナー表示（右上の小さなマップ）
+    ctx.fillStyle = '#333'; ctx.fillRect(520, 20, 60, 60);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(550, 70); ctx.lineTo(580, 40); ctx.lineTo(550, 10); ctx.lineTo(520, 40); ctx.closePath(); ctx.stroke();
+    const bPos = [{x: 580, y: 40}, {x: 550, y: 10}, {x: 520, y: 40}]; // 1, 2, 3塁
+    bPos.forEach((p, i) => {
+        if(state.bases[i]) {
+            ctx.fillStyle = '#f44336'; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fill();
+        }
+    });
+}
+
+function gameLoop() {
+    update(); draw(); requestAnimationFrame(gameLoop);
+}
+
+// ==========================================
+// 入力インターフェース (マウス & タッチ対応)
+// ==========================================
+
+// カーソルの座標をCanvas内の相対座標に変換
+function getCanvasPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    // scaleX/Yは、CSSによって縮小・拡大されている場合の補正
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+    };
+}
+
+// ドラッグ（タッチ）によるミートカーソル移動
+function handleMove(e) {
+    e.preventDefault(); // スクロール防止
+    if(!state.isTop) return;
+    let pos = getCanvasPos(e);
+    // 画面外に出ないように制限
+    cursor.x = Math.max(0, Math.min(canvas.width, pos.x));
+    cursor.y = Math.max(0, Math.min(canvas.height, pos.y));
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    if(state.isTop) {
+        cursor.isDragging = true;
+        handleMove(e);
+    } else {
+        // 守備時はタップで投球
+        let pos = getCanvasPos(e);
+        throwPitch(pos.x, pos.y);
+    }
+});
+canvas.addEventListener('mousemove', (e) => { if(cursor.isDragging) handleMove(e); });
+canvas.addEventListener('mouseup', () => { cursor.isDragging = false; });
+canvas.addEventListener('mouseleave', () => { cursor.isDragging = false; });
+
+// タッチイベント（iPad/スマホ用）
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if(state.isTop) handleMove(e);
+    else {
+        let pos = getCanvasPos(e);
+        throwPitch(pos.x, pos.y);
+    }
+}, {passive: false});
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if(state.isTop) handleMove(e);
+}, {passive: false});
+
+// スイングボタン
+const swingBtn = document.getElementById('swing-btn');
+swingBtn.addEventListener('mousedown', swing);
+swingBtn.addEventListener('touchstart', (e) => { e.preventDefault(); swing(); }, {passive: false});
+
+// キーボード（PCプレイ用）
+window.addEventListener('keydown', (e) => { if(e.code === 'Space') swing(); });
+
+gameLoop();
+
+</script>
 </body>
 </html>
