@@ -2,501 +2,445 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>プロスピ風 ブラウザ野球</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>プロスピ風 野球ミニゲーム</title>
     <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e74c3c;
+            --bg: #ecf0f1;
+            --strike-zone: rgba(255, 255, 255, 0.3);
+        }
         body {
-            background-color: #1a1a1a;
-            color: white;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 0;
-            padding: 10px;
-            /* タッチデバイスでのデフォルトスワイプ動作を無効化 */
-            touch-action: none;
             user-select: none;
-            -webkit-user-select: none;
         }
-        #scoreboard {
-            width: 100%;
-            max-width: 600px;
-            background: linear-gradient(to bottom, #333, #000);
-            border: 2px solid #555;
-            border-radius: 8px;
-            padding: 10px;
-            box-sizing: border-box;
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
-        .team-score { display: flex; flex-direction: column; align-items: center; width: 25%; font-weight: bold;}
-        .inning-info { display: flex; flex-direction: column; align-items: center; width: 50%; color: #ffd700; font-weight: bold;}
-        .count-board { display: flex; gap: 10px; margin-top: 5px;}
-        .indicator { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #777; background-color: #222; display: inline-block; margin-right: 2px;}
-        .strike.active { background-color: #ffeb3b; } /* プロスピ風の黄色 */
-        .ball.active { background-color: #4caf50; }  /* プロスピ風の緑 */
-        .out.active { background-color: #f44336; }   /* 赤 */
-        
         #game-container {
             position: relative;
-            width: 100%;
-            max-width: 600px;
+            margin-top: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #27ae60; /* 芝生の色 */
         }
         canvas {
-            width: 100%;
-            height: auto;
-            background-color: #2e7d32; /* 球場の芝生の色 */
-            border: 2px solid #fff;
-            border-radius: 8px;
             display: block;
+            cursor: crosshair;
         }
-        #message {
+        /* UIパネル */
+        #ui-layer {
             position: absolute;
-            top: 40%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 10vw; /* 画面サイズに合わせる */
-            font-weight: bold;
-            color: #fff;
-            text-shadow: 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            top: 0; left: 0; right: 0; bottom: 0;
             pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s;
-            white-space: nowrap;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
         }
-        
-        /* モバイル/iPad用コントローラー */
-        #controls {
-            width: 100%;
-            max-width: 600px;
+        .scoreboard {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
             display: flex;
             justify-content: space-between;
-            margin-top: 15px;
-            height: 80px;
-        }
-        .instruction {
-            width: 60%;
-            font-size: 14px;
-            color: #ccc;
-            display: flex;
-            align-items: center;
-        }
-        #swing-btn {
-            width: 35%;
-            background: linear-gradient(to bottom, #ff5722, #bf360c);
-            color: white;
-            border: 2px solid #fff;
-            border-radius: 40px;
-            font-size: 24px;
+            font-size: 1.2rem;
             font-weight: bold;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            pointer-events: auto;
+        }
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            pointer-events: auto;
+            text-align: center;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+        }
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            border: 2px solid var(--primary);
+            background: white;
+            color: var(--primary);
+            border-radius: 5px;
+            font-weight: bold;
             cursor: pointer;
-            transition: transform 0.1s;
+            transition: 0.2s;
         }
-        #swing-btn:active {
-            transform: scale(0.95);
+        button.active, button:active {
+            background: var(--primary);
+            color: white;
         }
-        #swing-btn:disabled {
-            background: #555;
-            color: #888;
-            border-color: #777;
+        button.btn-accent {
+            border-color: var(--accent);
+            color: var(--accent);
         }
-
-        @media (min-width: 600px) {
-            #message { font-size: 60px; }
+        button.btn-accent.active {
+            background: var(--accent);
+            color: white;
         }
+        /* メッセージ表示 */
+        #message-overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <div id="scoreboard">
-        <div class="team-score">
-            <div>YOU</div>
-            <div id="score-player" style="font-size: 28px;">0</div>
+<div id="game-container">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    
+    <div id="ui-layer">
+        <div class="scoreboard">
+            <span id="inning-text">1回表</span>
+            <span>P1: <span id="score-p1">0</span> | P2: <span id="score-p2">0</span></span>
+            <span id="out-text">0 OUT</span>
         </div>
-        <div class="inning-info">
-            <div id="inning-text">1回 表 (あなたの攻撃)</div>
-            <div class="count-board">
-                <div>B <span id="ball-1" class="indicator ball"></span><span id="ball-2" class="indicator ball"></span><span id="ball-3" class="indicator ball"></span></div>
-                <div>S <span id="strike-1" class="indicator strike"></span><span id="strike-2" class="indicator strike"></span></div>
-                <div>O <span id="out-1" class="indicator out"></span><span id="out-2" class="indicator out"></span></div>
+
+        <!-- ピッチャー用UI -->
+        <div id="pitcher-ui" class="controls">
+            <h3>【ピッチャー】球種を選択し、ストライクゾーンをクリックして投球！</h3>
+            <div class="btn-group">
+                <button class="pitch-btn active" data-type="ストレート">ストレート</button>
+                <button class="pitch-btn" data-type="イーファス">イーファス</button>
+                <button class="pitch-btn" data-type="スプリット">スプリット</button>
+                <button class="pitch-btn" data-type="ツーシーム">ツーシーム</button>
+                <button class="pitch-btn" data-type="スライダー">スライダー</button>
+                <button class="pitch-btn" data-type="高速スライダー">高速スライダー</button>
             </div>
         </div>
-        <div class="team-score">
-            <div>BOT</div>
-            <div id="score-bot" style="font-size: 28px;">0</div>
+
+        <!-- バッター交代・待機UI -->
+        <div id="transition-ui" class="controls hidden">
+            <h3>バッターに画面を交代してください</h3>
+            <button id="btn-ready-batter" class="active">バッター準備完了</button>
+        </div>
+
+        <!-- バッター用UI -->
+        <div id="batter-ui" class="controls hidden">
+            <h3>【バッター】打ち方を選択し、画面クリックでスイング！</h3>
+            <div class="btn-group">
+                <button class="swing-btn active btn-accent" data-type="ミート">ミート打（当てやすい）</button>
+                <button class="swing-btn btn-accent" data-type="強振">強振（ホームラン狙い）</button>
+            </div>
         </div>
     </div>
-
-    <div id="game-container">
-        <canvas id="gameCanvas" width="600" height="600"></canvas>
-        <div id="message">PLAY BALL!</div>
-    </div>
-
-    <div id="controls">
-        <div class="instruction" id="instruction-text">
-            【攻撃】画面をドラッグしてカーソルを移動。右のボタンでスイング！
-        </div>
-        <button id="swing-btn">スイング</button>
-    </div>
+    
+    <div id="message-overlay">PLAY BALL</div>
+</div>
 
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
-// ゲームステート
-let state = {
-    inning: 1, isTop: true, playerScore: 0, botScore: 0,
-    balls: 0, strikes: 0, outs: 0, bases: [false, false, false],
-    phase: 'ready', messageTimer: 0, maxInnings: 3
-};
+    // --- ゲーム設定と状態 ---
+    const GAME_CONFIG = {
+        strikeZone: { x: 300, y: 150, w: 200, h: 250 },
+        moundY: 50,
+        maxInnings: 2,
+    };
 
-// 3D/擬似奥行き用の定数 (キャッチャー視点)
-const MOUND = { x: 300, y: 250, size: 5 }; // ピッチャーの位置（奥）
-const STRIKE_ZONE = { x: 200, y: 300, w: 200, h: 200 }; // ストライクゾーン（手前）
-const BALL_MIN_SIZE = 3;  // 奥にあるときのボールサイズ
-const BALL_MAX_SIZE = 15; // 手前に来たときのボールサイズ
-
-// オブジェクト
-let ball = { x: MOUND.x, y: MOUND.y, z: 0, targetX: 300, targetY: 400, active: false, speed: 0.03, progress: 0 };
-let cursor = { x: 300, y: 400, radius: 25, isDragging: false }; // ミートカーソル
-let swingAnim = 0; // スイング時のエフェクト用
-
-function showMessage(text, duration = 60) {
-    const msgEl = document.getElementById('message');
-    msgEl.innerText = text;
-    msgEl.style.opacity = 1;
-    state.messageTimer = duration;
-}
-
-function updateUI() {
-    document.getElementById('score-player').innerText = state.playerScore;
-    document.getElementById('score-bot').innerText = state.botScore;
-    document.getElementById('inning-text').innerText = `${state.inning}回 ${state.isTop ? '表 (あなた攻撃)' : '裏 (ボット攻撃)'}`;
-    
-    for(let i=1; i<=3; i++) document.getElementById(`ball-${i}`).classList.toggle('active', state.balls >= i);
-    for(let i=1; i<=2; i++) document.getElementById(`strike-${i}`).classList.toggle('active', state.strikes >= i);
-    for(let i=1; i<=2; i++) document.getElementById(`out-${i}`).classList.toggle('active', state.outs >= i);
-
-    document.getElementById('instruction-text').innerHTML = state.isTop 
-        ? "【攻撃】画面をドラッグしてカーソル移動。<br>タイミングよくスイング！" 
-        : "【守備】ストライクゾーン付近をタップして<br>投球コースを決定！";
+    const state = {
+        phase: 'PITCHER_SELECT', // PITCHER_SELECT, TRANSITION, BATTER_READY, PITCHING, RESULT, GAME_OVER
+        inning: 1,
+        isTop: true, // true: 表(P1攻撃), false: 裏(P2攻撃)
+        outs: 0,
+        scores: { p1: 0, p2: 0 },
         
-    document.getElementById('swing-btn').disabled = !state.isTop;
+        // 投球データ
+        pitchType: 'ストレート',
+        targetX: 400,
+        targetY: 300,
+        ball: { x: 400, y: 50, size: 2, progress: 0 },
+        pitchSpeed: 0,
+        
+        // 打撃データ
+        swingType: 'ミート',
+        cursor: { x: 400, y: 300 },
+        hasSwung: false
+    };
 
-    if(state.messageTimer > 0) {
-        state.messageTimer--;
-        if(state.messageTimer <= 0) document.getElementById('message').style.opacity = 0;
+    // --- 球種データ ---
+    const PITCH_TYPES = {
+        'ストレート': { speed: 0.02, getMod: (t) => ({ x: 0, y: 0 }) },
+        'イーファス': { speed: 0.008, getMod: (t) => ({ x: 0, y: -Math.sin(t * Math.PI) * 200 }) }, // 上に大きく上がる
+        'スプリット': { speed: 0.018, getMod: (t) => ({ x: 0, y: t > 0.8 ? (t - 0.8) * 400 : 0 }) }, // 最後に鋭く落ちる
+        'ツーシーム': { speed: 0.019, getMod: (t) => ({ x: t > 0.6 ? (t - 0.6) * 150 : 0, y: t > 0.6 ? (t - 0.6) * 100 : 0 }) }, // 右下にシュート回転
+        'スライダー': { speed: 0.015, getMod: (t) => ({ x: Math.pow(t, 2) * -200, y: Math.pow(t, 2) * 50 }) }, // 左に大きく曲がる
+        '高速スライダー': { speed: 0.019, getMod: (t) => ({ x: Math.pow(t, 2) * -100, y: 0 }) } // 左に鋭く曲がる
+    };
+
+    // --- UI制御 ---
+    const dom = {
+        pitcherUI: document.getElementById('pitcher-ui'),
+        transitionUI: document.getElementById('transition-ui'),
+        batterUI: document.getElementById('batter-ui'),
+        msgOverlay: document.getElementById('message-overlay'),
+        pitchBtns: document.querySelectorAll('.pitch-btn'),
+        swingBtns: document.querySelectorAll('.swing-btn')
+    };
+
+    function updateUI() {
+        document.getElementById('inning-text').innerText = `${state.inning}回${state.isTop ? '表' : '裏'}`;
+        document.getElementById('score-p1').innerText = state.scores.p1;
+        document.getElementById('score-p2').innerText = state.scores.p2;
+        document.getElementById('out-text').innerText = `${state.outs} OUT`;
+
+        dom.pitcherUI.classList.toggle('hidden', state.phase !== 'PITCHER_SELECT');
+        dom.transitionUI.classList.toggle('hidden', state.phase !== 'TRANSITION');
+        dom.batterUI.classList.toggle('hidden', state.phase !== 'BATTER_READY' && state.phase !== 'PITCHING');
     }
-}
 
-function resetCount() { state.balls = 0; state.strikes = 0; }
-function addStrike() {
-    state.strikes++;
-    if(state.strikes >= 3) { showMessage("STRIKEOUT!", 80); addOut(); resetCount(); }
-    else showMessage("STRIKE!");
-}
-function addBall() {
-    state.balls++;
-    if(state.balls >= 4) { showMessage("WALK (四球)!", 80); advanceRunners(1); resetCount(); }
-    else showMessage("BALL!");
-}
-function addOut() {
-    state.outs++;
-    if(state.outs >= 3) switchInning();
-}
+    function showMessage(text, duration = 1500) {
+        dom.msgOverlay.innerText = text;
+        dom.msgOverlay.style.opacity = 1;
+        setTimeout(() => dom.msgOverlay.style.opacity = 0, duration);
+    }
 
-function advanceRunners(basesToAdvance) {
-    let runs = 0;
-    if(basesToAdvance === 1 && !state.bases[0]) { state.bases[0] = true; return; }
-    for (let i = 2; i >= 0; i--) {
-        if (state.bases[i]) {
-            state.bases[i] = false;
-            if (i + basesToAdvance >= 3) runs++;
-            else state.bases[i + basesToAdvance] = true;
+    // --- 入力イベント ---
+    dom.pitchBtns.forEach(btn => {
+        btn.onclick = (e) => {
+            dom.pitchBtns.forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            state.pitchType = e.target.dataset.type;
+        };
+    });
+
+    dom.swingBtns.forEach(btn => {
+        btn.onclick = (e) => {
+            dom.swingBtns.forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            state.swingType = e.target.dataset.type;
+        };
+    });
+
+    document.getElementById('btn-ready-batter').onclick = () => {
+        state.phase = 'BATTER_READY';
+        updateUI();
+        setTimeout(startPitch, 1000); // 1秒後に投球開始
+    };
+
+    canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        state.cursor.x = e.clientX - rect.left;
+        state.cursor.y = e.clientY - rect.top;
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (state.phase === 'PITCHER_SELECT') {
+            // コース決定して投球準備へ
+            state.targetX = state.cursor.x;
+            state.targetY = state.cursor.y;
+            state.phase = 'TRANSITION';
+            updateUI();
+        } else if (state.phase === 'PITCHING' && !state.hasSwung) {
+            // スイング実行
+            executeSwing();
         }
-    }
-    if (basesToAdvance >= 4) runs++;
-    else if (basesToAdvance > 0) state.bases[basesToAdvance - 1] = true;
+    });
 
-    if(runs > 0) {
-        if(state.isTop) state.playerScore += runs; else state.botScore += runs;
-        showMessage(`${runs} RUNS SCORE!`, 90);
+    // --- ゲームロジック ---
+    function startPitch() {
+        state.phase = 'PITCHING';
+        state.ball.progress = 0;
+        state.hasSwung = false;
+        state.pitchSpeed = PITCH_TYPES[state.pitchType].speed;
+        updateUI();
+        requestAnimationFrame(gameLoop);
     }
-}
 
-function switchInning() {
-    state.outs = 0; resetCount(); state.bases = [false, false, false];
-    if(state.isTop) { state.isTop = false; showMessage("CHANGE!", 100); } 
-    else {
-        state.inning++;
-        if(state.inning > state.maxInnings) {
-            let res = state.playerScore > state.botScore ? "YOU WIN!" : (state.playerScore < state.botScore ? "YOU LOSE..." : "DRAW");
-            showMessage(`GAME OVER\n${res}`, 9999);
-            state.phase = 'gameover';
+    function executeSwing() {
+        state.hasSwung = true;
+        const t = state.ball.progress;
+        
+        // タイミング判定 (1.0がホームベース到達時)
+        if (t < 0.7 || t > 1.2) {
+            processResult("空振り", 0);
             return;
         }
-        state.isTop = true; showMessage("CHANGE!", 100);
+
+        // 距離判定
+        const dist = Math.hypot(state.ball.x - state.cursor.x, state.ball.y - state.cursor.y);
+        const hitRadius = state.swingType === 'ミート' ? 35 : 15; // 強振は芯が狭い
+
+        if (dist < hitRadius + state.ball.size) {
+            // ヒット判定
+            const timingDiff = Math.abs(1.0 - t);
+            if (timingDiff < 0.05 && state.swingType === '強振' && dist < 10) {
+                processResult("ホームラン!!", 1);
+            } else if (timingDiff < 0.15) {
+                processResult("ヒット!", 0.5); // 得点確率などを設定可能（今回は簡易的に確実に点を入れるかランダムか）
+            } else {
+                processResult("ファウル", 0); // 今回のルールでは1球勝負なのでアウト扱いにするかファウルにするか
+            }
+        } else {
+            processResult("空振り", 0);
+        }
     }
-}
 
-// 投球開始
-function throwPitch(tx, ty) {
-    if(state.phase !== 'ready') return;
-    ball.targetX = tx; ball.targetY = ty;
-    ball.progress = 0;
-    ball.active = true;
-    state.phase = 'pitching';
-    ball.speed = 0.015 + Math.random() * 0.01; // 球速のブレ
-}
-
-// スイング処理
-function swing() {
-    if(!state.isTop || state.phase !== 'pitching' || swingAnim > 0) return;
-    swingAnim = 15; // スイングエフェクトのフレーム数
-    
-    // プロスピ風判定：ボールが手前(progressが0.85〜1.0)に来た時にスイングしたか
-    if (ball.progress > 0.85 && ball.progress <= 1.05) {
-        // カーソルとボールの距離を計算
-        let dx = ball.x - cursor.x;
-        let dy = ball.y - cursor.y;
-        let distance = Math.sqrt(dx*dx + dy*dy);
+    function processResult(resultText, scoreAdd) {
+        state.phase = 'RESULT';
+        showMessage(resultText, 2000);
         
-        if (distance < cursor.radius) {
-            hitBall(distance);
+        if (scoreAdd > 0) {
+            const attacker = state.isTop ? 'p1' : 'p2';
+            state.scores[attacker] += scoreAdd;
+        } else {
+            state.outs += 1;
+        }
+
+        setTimeout(nextTurn, 2000);
+    }
+
+    function nextTurn() {
+        // アウトカウント（1アウトで攻守交代の超短期決戦ルール）
+        if (state.outs >= 1) {
+            state.outs = 0;
+            if (state.isTop) {
+                state.isTop = false; // 裏へ
+            } else {
+                state.inning += 1; // 次の回へ
+                state.isTop = true;
+            }
+        }
+
+        if (state.inning > GAME_CONFIG.maxInnings) {
+            state.phase = 'GAME_OVER';
+            updateUI();
+            const winner = state.scores.p1 > state.scores.p2 ? "P1の勝利！" : 
+                           state.scores.p1 < state.scores.p2 ? "P2の勝利！" : "引き分け！";
+            showMessage(`試合終了！ ${winner}`, 10000);
             return;
         }
+
+        state.phase = 'PITCHER_SELECT';
+        state.hasSwung = false;
+        updateUI();
+        drawCanvas();
     }
-    // タイミングがずれている、またはカーソルが合っていない
-    if (ball.progress > 0.5 && ball.progress < 1.2) {
-        state.phase = 'dead';
-        addStrike();
-    }
-}
 
-function hitBall(distance) {
-    state.phase = 'hit';
-    ball.active = false; // 打ったのでボールを消す
-    let timing = Math.abs(ball.progress - 0.95); // 0.95がジャストタイミングとする
-    let power = Math.random();
+    // --- 描画ロジック ---
+    function drawCanvas() {
+        // 背景クリア
+        ctx.fillStyle = '#27ae60';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 芯で捉え、かつタイミングが良い
-    if (distance < 10 && timing < 0.03 && power > 0.6) {
-        showMessage("HOME RUN!!!", 120); advanceRunners(4);
-    } else if (distance < 20 && timing < 0.06) {
-        showMessage("HIT!", 80); advanceRunners(1);
-    } else if (power > 0.3) {
-        showMessage("OUT...", 80); addOut();
-    } else {
-        showMessage("FOUL", 60);
-        if(state.strikes < 2) state.strikes++;
-    }
-    if(state.phase === 'hit') resetCount();
-}
-
-function update() {
-    if(state.phase === 'gameover') return;
-
-    if(state.phase === 'pitching') {
-        ball.progress += ball.speed;
+        // ストライクゾーン
+        const sz = GAME_CONFIG.strikeZone;
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(sz.x, sz.y, sz.w, sz.h);
         
-        // 奥行きの計算 (0:奥 -> 1:手前)
-        // 変化球ロジック (ボット投球時、少し曲がる)
-        let curveX = 0;
-        if(state.isTop) curveX = Math.sin(ball.progress * Math.PI) * 20 * (Math.random() > 0.5 ? 1 : -1);
+        // ゾーンの分割線
+        ctx.beginPath();
+        ctx.moveTo(sz.x + sz.w/3, sz.y); ctx.lineTo(sz.x + sz.w/3, sz.y + sz.h);
+        ctx.moveTo(sz.x + sz.w*2/3, sz.y); ctx.lineTo(sz.x + sz.w*2/3, sz.y + sz.h);
+        ctx.moveTo(sz.x, sz.y + sz.h/3); ctx.lineTo(sz.x + sz.w, sz.y + sz.h/3);
+        ctx.moveTo(sz.x, sz.y + sz.h*2/3); ctx.lineTo(sz.x + sz.w, sz.y + sz.h*2/3);
+        ctx.stroke();
 
-        ball.x = MOUND.x + (ball.targetX - MOUND.x + curveX) * ball.progress;
-        ball.y = MOUND.y + (ball.targetY - MOUND.y) * ball.progress;
-        
-        // キャッチャーミットに到達 (progress >= 1)
-        if(ball.progress >= 1.05) {
-            state.phase = 'dead';
-            let isStrike = (ball.targetX >= STRIKE_ZONE.x && ball.targetX <= STRIKE_ZONE.x + STRIKE_ZONE.w &&
-                            ball.targetY >= STRIKE_ZONE.y && ball.targetY <= STRIKE_ZONE.y + STRIKE_ZONE.h);
-            if(isStrike) addStrike(); else addBall();
-        }
-
-        // ボットの自動スイング（守備時）
-        if(!state.isTop && ball.progress > 0.9 && ball.progress < 0.95) {
-            let isStrike = (ball.targetX >= STRIKE_ZONE.x && ball.targetX <= STRIKE_ZONE.x + STRIKE_ZONE.w &&
-                            ball.targetY >= STRIKE_ZONE.y && ball.targetY <= STRIKE_ZONE.y + STRIKE_ZONE.h);
-            if(isStrike || Math.random() < 0.2) {
-                // ボットは一定の確率でカーソルを合わせてくる
-                cursor.x = ball.targetX + (Math.random() - 0.5) * 30;
-                cursor.y = ball.targetY + (Math.random() - 0.5) * 30;
-                swingAnim = 15;
-                let dx = ball.x - cursor.x; let dy = ball.y - cursor.y;
-                let dist = Math.sqrt(dx*dx + dy*dy);
-                if(dist < cursor.radius) hitBall(dist);
-                else { state.phase = 'dead'; addStrike(); }
+        // 状態ごとの描画
+        if (state.phase === 'PITCHER_SELECT') {
+            // ピッチャーのカーソル（投球目標）
+            ctx.fillStyle = 'rgba(231, 76, 60, 0.5)';
+            ctx.beginPath();
+            ctx.arc(state.cursor.x, state.cursor.y, 10, 0, Math.PI * 2);
+            ctx.fill();
+        } 
+        else if (state.phase === 'BATTER_READY' || state.phase === 'PITCHING' || state.phase === 'RESULT') {
+            // バッターのカーソル
+            ctx.strokeStyle = state.swingType === '強振' ? '#e74c3c' : '#3498db';
+            ctx.lineWidth = 4;
+            const radius = state.swingType === '強振' ? 15 : 35;
+            ctx.beginPath();
+            ctx.arc(state.cursor.x, state.cursor.y, radius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // ボールの描画
+            if (state.phase === 'PITCHING') {
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = '#c0392b';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(state.ball.x, state.ball.y, state.ball.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
             }
         }
     }
 
-    if(swingAnim > 0) swingAnim--;
+    function gameLoop() {
+        if (state.phase !== 'PITCHING') return;
 
-    // ボットの投球開始（プレイヤー攻撃時）
-    if(state.isTop && state.phase === 'ready' && Math.random() < 0.02) {
-        // ストライクゾーン付近にランダムに目標を定める
-        let tx = STRIKE_ZONE.x - 20 + Math.random() * (STRIKE_ZONE.w + 40);
-        let ty = STRIKE_ZONE.y - 20 + Math.random() * (STRIKE_ZONE.h + 40);
-        throwPitch(tx, ty);
-    }
+        // ボールの進行
+        state.ball.progress += state.pitchSpeed;
+        const t = state.ball.progress;
 
-    // 次の球への移行
-    if(state.phase === 'dead' || state.phase === 'hit') {
-        setTimeout(() => {
-            if(state.phase !== 'gameover') { ball.active = false; state.phase = 'ready'; }
-        }, 1500);
-        state.phase = 'waiting';
-    }
+        // ベースの直線軌道計算（マウンド中央上部 から ターゲットへ）
+        const startX = canvas.width / 2;
+        const startY = GAME_CONFIG.moundY;
+        let bx = startX + (state.targetX - startX) * t;
+        let by = startY + (state.targetY - startY) * t;
 
-    updateUI();
-}
+        // 球種による変化を加算
+        const mod = PITCH_TYPES[state.pitchType].getMod(t);
+        bx += mod.x;
+        by += mod.y;
 
-function draw() {
-    // 背景（球場後方）
-    ctx.fillStyle = '#1b5e20'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // マウンド（奥）
-    ctx.fillStyle = '#8d6e63';
-    ctx.beginPath(); ctx.ellipse(MOUND.x, MOUND.y, 60, 20, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillRect(MOUND.x - 10, MOUND.y - 2, 20, 4); // ピッチャープレート
+        state.ball.x = bx;
+        state.ball.y = by;
+        
+        // 遠近感（近づくほど大きくなる）
+        state.ball.size = 2 + (t * 25);
 
-    // ピッチャー（シルエット）
-    ctx.fillStyle = '#333';
-    ctx.beginPath(); ctx.arc(MOUND.x, MOUND.y - 30, 15, 0, Math.PI*2); ctx.fill();
-    ctx.fillRect(MOUND.x - 15, MOUND.y - 20, 30, 40);
+        drawCanvas();
 
-    // ホームベース（手前）
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.moveTo(300, 560); ctx.lineTo(340, 560); ctx.lineTo(340, 580); ctx.lineTo(300, 595); ctx.lineTo(260, 580); ctx.lineTo(260, 560);
-    ctx.closePath(); ctx.fill();
-
-    // ストライクゾーン枠（9分割）
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; ctx.lineWidth = 2;
-    ctx.strokeRect(STRIKE_ZONE.x, STRIKE_ZONE.y, STRIKE_ZONE.w, STRIKE_ZONE.h);
-    ctx.beginPath();
-    // 縦線
-    ctx.moveTo(STRIKE_ZONE.x + STRIKE_ZONE.w/3, STRIKE_ZONE.y); ctx.lineTo(STRIKE_ZONE.x + STRIKE_ZONE.w/3, STRIKE_ZONE.y + STRIKE_ZONE.h);
-    ctx.moveTo(STRIKE_ZONE.x + STRIKE_ZONE.w*2/3, STRIKE_ZONE.y); ctx.lineTo(STRIKE_ZONE.x + STRIKE_ZONE.w*2/3, STRIKE_ZONE.y + STRIKE_ZONE.h);
-    // 横線
-    ctx.moveTo(STRIKE_ZONE.x, STRIKE_ZONE.y + STRIKE_ZONE.h/3); ctx.lineTo(STRIKE_ZONE.x + STRIKE_ZONE.w, STRIKE_ZONE.y + STRIKE_ZONE.h/3);
-    ctx.moveTo(STRIKE_ZONE.x, STRIKE_ZONE.y + STRIKE_ZONE.h*2/3); ctx.lineTo(STRIKE_ZONE.x + STRIKE_ZONE.w, STRIKE_ZONE.y + STRIKE_ZONE.h*2/3);
-    ctx.stroke();
-
-    // ミートカーソル（攻撃時のみ）
-    if(state.isTop) {
-        ctx.strokeStyle = '#ffeb3b'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(cursor.x, cursor.y, cursor.radius, 0, Math.PI*2); ctx.stroke();
-        ctx.fillStyle = 'rgba(255, 235, 59, 0.3)'; ctx.fill();
-        ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(cursor.x, cursor.y, 3, 0, Math.PI*2); ctx.fill(); // 中心点
-    }
-
-    // スイングエフェクト
-    if(swingAnim > 0) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.beginPath();
-        // 扇状のエフェクト
-        ctx.arc(cursor.x, cursor.y, cursor.radius * 2, Math.PI, Math.PI*2);
-        ctx.fill();
-    }
-
-    // ボール（奥から手前へサイズが変わる）
-    if(ball.active) {
-        let currentSize = BALL_MIN_SIZE + (BALL_MAX_SIZE - BALL_MIN_SIZE) * ball.progress;
-        ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(ball.x, ball.y, currentSize, 0, Math.PI*2); ctx.fill();
-        ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 1; // 縫い目
-        ctx.beginPath(); ctx.arc(ball.x, ball.y, currentSize, 0, Math.PI*2); ctx.stroke();
-    }
-
-    // ランナー表示（右上の小さなマップ）
-    ctx.fillStyle = '#333'; ctx.fillRect(520, 20, 60, 60);
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(550, 70); ctx.lineTo(580, 40); ctx.lineTo(550, 10); ctx.lineTo(520, 40); ctx.closePath(); ctx.stroke();
-    const bPos = [{x: 580, y: 40}, {x: 550, y: 10}, {x: 520, y: 40}]; // 1, 2, 3塁
-    bPos.forEach((p, i) => {
-        if(state.bases[i]) {
-            ctx.fillStyle = '#f44336'; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fill();
+        // キャッチャーミット到達（見逃し判定）
+        if (t > 1.1 && !state.hasSwung) {
+            // ストライクゾーン内かどうかの判定
+            const sz = GAME_CONFIG.strikeZone;
+            if (bx > sz.x && bx < sz.x + sz.w && by > sz.y && by < sz.y + sz.h) {
+                processResult("見逃しストライク", 0);
+            } else {
+                // 今回はシンプルにボール球は見逃せばノーカン（やり直し）にします
+                showMessage("ボール！", 1500);
+                setTimeout(() => {
+                    state.phase = 'PITCHER_SELECT';
+                    updateUI();
+                    drawCanvas();
+                }, 1500);
+                return;
+            }
+            return; // ループ終了
         }
-    });
-}
 
-function gameLoop() {
-    update(); draw(); requestAnimationFrame(gameLoop);
-}
-
-// ==========================================
-// 入力インターフェース (マウス & タッチ対応)
-// ==========================================
-
-// カーソルの座標をCanvas内の相対座標に変換
-function getCanvasPos(e) {
-    const rect = canvas.getBoundingClientRect();
-    // scaleX/Yは、CSSによって縮小・拡大されている場合の補正
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    
-    let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-    return {
-        x: (clientX - rect.left) * scaleX,
-        y: (clientY - rect.top) * scaleY
-    };
-}
-
-// ドラッグ（タッチ）によるミートカーソル移動
-function handleMove(e) {
-    e.preventDefault(); // スクロール防止
-    if(!state.isTop) return;
-    let pos = getCanvasPos(e);
-    // 画面外に出ないように制限
-    cursor.x = Math.max(0, Math.min(canvas.width, pos.x));
-    cursor.y = Math.max(0, Math.min(canvas.height, pos.y));
-}
-
-canvas.addEventListener('mousedown', (e) => {
-    if(state.isTop) {
-        cursor.isDragging = true;
-        handleMove(e);
-    } else {
-        // 守備時はタップで投球
-        let pos = getCanvasPos(e);
-        throwPitch(pos.x, pos.y);
+        requestAnimationFrame(gameLoop);
     }
-});
-canvas.addEventListener('mousemove', (e) => { if(cursor.isDragging) handleMove(e); });
-canvas.addEventListener('mouseup', () => { cursor.isDragging = false; });
-canvas.addEventListener('mouseleave', () => { cursor.isDragging = false; });
 
-// タッチイベント（iPad/スマホ用）
-canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    if(state.isTop) handleMove(e);
-    else {
-        let pos = getCanvasPos(e);
-        throwPitch(pos.x, pos.y);
-    }
-}, {passive: false});
-canvas.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    if(state.isTop) handleMove(e);
-}, {passive: false});
-
-// スイングボタン
-const swingBtn = document.getElementById('swing-btn');
-swingBtn.addEventListener('mousedown', swing);
-swingBtn.addEventListener('touchstart', (e) => { e.preventDefault(); swing(); }, {passive: false});
-
-// キーボード（PCプレイ用）
-window.addEventListener('keydown', (e) => { if(e.code === 'Space') swing(); });
-
-gameLoop();
+    // 初期化描画
+    updateUI();
+    drawCanvas();
 
 </script>
 </body>
